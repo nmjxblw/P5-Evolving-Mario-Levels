@@ -5,7 +5,7 @@
 
 - **Requirements**
   - [ ] Implement `generate_successors` using at least two selection strategies to build up the next population.  
-      - You can use elitist selection, roulette wheel selection, tournament selection, or any other approach considering the individuals based on their fitnesses (this is a key element of the search and you should play with different approaches and parameters to get good results). Eventually, it should call generate_children.  
+      - You can use elitist selection, roulette wheel selection, tournament selection, or any other approach considering the individuals based on their fitnesses (this is a key element of the search and you should play with different approaches and parameters to get good results). Eventually, it should call `generate_children`.  
   - [ ] Implement crossover in `generate_children` for the Grid encoding.  
     - You must describe in your writeup whether you use single-point, uniform, or some other crossover. Note that the skeleton provided produces just one child, but you can produce more than one if you want (or even have more than two parents). If you want to use single- or multi-point crossover, consider whether you’re doing it by columns, by rows, or something else.
  
