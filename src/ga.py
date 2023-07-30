@@ -21,9 +21,9 @@ options = [
     "|",  # a pipe segment
     "T",  # a pipe top
     "E",  # an enemy
-    #"f",  # a flag, do not generate
-    #"v",  # a flagpole, do not generate
-    #"m"  # mario's start position, do not generate
+    # "f",  # a flag, do not generate
+    # "v",  # a flagpole, do not generate
+    # "m"  # mario's start position, do not generate
 ]
 
 # The level as a grid of tiles
@@ -42,6 +42,10 @@ class Individual_Grid(object):
         measurements = metrics.metrics(self.to_level())
         # Print out the possible measurements or look at the implementation of metrics.py for other keys:
         # print(measurements.keys())
+        # os.system("cls")
+        # for key in measurements.keys():
+        #     print(f"measurements[{key}]:{measurements[key]}")
+        # os.system("pause")
         # Default fitness function: Just some arbitrary combination of a few criteria.  Is it good?  Who knows?
         # STUDENT Modify this, and possibly add more metrics.  You can replace this with whatever code you like.
         coefficients = dict(
@@ -50,10 +54,11 @@ class Individual_Grid(object):
             pathPercentage=0.5,
             emptyPercentage=0.6,
             linearity=-0.5,
-            solvability=2.0
+            solvability=2.0,
         )
-        self._fitness = sum(map(lambda m: coefficients[m] * measurements[m],
-                                coefficients))
+        self._fitness = sum(
+            map(lambda m: coefficients[m] * measurements[m], coefficients)
+        )
         return self
 
     # Return the cached fitness value or calculate it as needed.
@@ -67,7 +72,8 @@ class Individual_Grid(object):
         # STUDENT implement a mutation operator, also consider not mutating this individual
         # STUDENT also consider weighting the different tile types so it's not uniformly random
         # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
-
+        # print(genome)
+        # os.system("pause")
         left = 1
         right = width - 1
         for y in range(height):
@@ -88,7 +94,7 @@ class Individual_Grid(object):
                 # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
                 pass
         # do mutation; note we're returning a one-element tuple here
-        return (Individual_Grid(new_genome),)
+        return (Individual_Grid(new_genome), Individual_Grid(new_genome))
 
     # Turn the genome into a level string (easy for this genome)
     def to_level(self):
@@ -112,17 +118,108 @@ class Individual_Grid(object):
     def random_individual(cls):
         # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
         # STUDENT also consider weighting the different tile types so it's not uniformly random
-        g = [random.choices(options, k=width) for row in range(height)]
+        g = [["" for col in range(width)] for row in range(height)]
+        g[0][:] = ["-"] * width
+        for x in range(1, width - 1):
+            for y in range(1, height - 1):
+                # we do the random
+                # also set the weights to make the game much easier
+                if g[y][x] == "":
+                    g[y][x] = random.choices(
+                        options, weights=[5, 1, 2, 2, 1, 3, 1, 1, 1], k=1
+                    )[0]
+                if x <= 1 and y >= 12:
+                    # clean zone
+                    g[y][x] = "-"
+                    continue
+                try:
+                    # then we need to check if the block is legal or not
+                    if g[y][x] == "|" and (g[y + 1][x] not in ["|", "X"]):
+                        # this means pipe in the air,
+                        # add a pipe or a solid wall at the bottom.
+                        g[y + 1][x] = random.choices(["|", "X"], weights=[2, 8], k=1)[0]
+                        if y != 0:
+                            if g[y - 1][x] not in ["T", "|"]:
+                                g[y][x] = "T"
+                                print(f"g[{y - 1}][{x}] is {g[y - 1][x]}")
+                                print(f"so,place g[{y}][{x}] to T")
+                    if g[y][x] in ["T", "M", "?"]:
+                        # if this block is a top of pipe or mushroom block,
+                        print(f"find a {g[y][x]} at g[{y}][{x}]")
+                        if g[y][x] == "T":
+                            # for pipe top block
+                            # we need to add a pipe or a solid wall at the bottom.
+                            g[y + 1][x] = random.choices(
+                                ["|", "X"], weights=[3, 7], k=1
+                            )[0]
+                            print(f"so,place g[{y+1}][{x}] to {g[y + 1][x]}")
+                        if y != 0:
+                            # also, we don't want any block on the top of the pipe top or mushroom block
+                            # we need to check if it's legal to delete the block
+                            ban_list = ["|", "T", "E"]
+                            if y >= 2:
+                                if g[y - 2][x] in ban_list:
+                                    # bad block, repick it
+                                    g[y][x] = random.choices(
+                                        ["X", "B", "?"], weights=[1, 8, 1], k=1
+                                    )[0]
+                                    print(
+                                        f"g[{y - 2}][{x}] is {g[y - 2][x]}, it's in ban_list"
+                                    )
+                                    print(f"so repalce g[{y}][{x}] ot {g[y][x]}")
+                                    continue
+                        # this means we can delete the block
+                        g[y - 1][x] = "-"
+                        print(f"and repalce g[{y-1}][{x}] ot {g[y-1][x]}")
+                        continue
+                    if g[y][x] == "E":
+                        # When generating enemies, we don't want them to be too close to the starting position.
+                        if x <= 7 or g[y - 1][x] in ["T", "E", "|"]:
+                            # print(f"find enemy at[{x},{y}]")
+                            # delete it
+                            g[y][x] == "-"
+                            continue
+                        # make sure the enemy is standing on the block
+                        g[y + 1][x] == random.choice(["X", "B", "?", "M", "T"])
+                        continue
+                except IndexError:
+                    # out of index error,
+                    # fix it as a solid wall block
+                    # print("Index error")
+                    g[y][x] = "X"
+
+        # Brute force fix
+        for x in range(width):
+            for y in range(height - 1):
+                if g[y][x] in ["T", "|"]:
+                    if g[y + 1][x] not in ["X", "B", "?", "M", "|"]:
+                        g[y + 1][x] = "X"
+                elif g[y][x] == "E":
+                    if g[y + 1][x] not in ["X", "B", "?", "M", "T"]:
+                        g[y][x] = "-"
+                elif g[y][x] in ["?", "M"]:
+                    if g[y + 1][x] in ["X", "B", "?", "M", "|", "T"]:
+                        g[y + 1][x] = "-"
+                elif g[y][x] == "o":
+                    if g[y - 1][x] in ["T", "|", "E"]:
+                        g[y - 1][x] = "X"
+
         g[15][:] = ["X"] * width
         g[14][0] = "m"
         g[7][-1] = "v"
-        g[8:14][-1] = ["f"] * 6
-        g[14:16][-1] = ["X", "X"]
+        for col in range(8, 14):
+            g[col][-1] = "f"
+        for col in range(14, 16):
+            g[col][-1] = "X"
+
         return cls(g)
 
 
 def offset_by_upto(val, variance, min=None, max=None):
+    # Use a normal distribution to create a positive or negative offset,
+    # where the maximum value of this offset is the square root of the variance.
     val += random.normalvariate(0, variance**0.5)
+    # Constrain the displaced coordinates and return an integer value within a safe range.
     if min is not None and val < min:
         val = min
     if max is not None and val > max:
@@ -136,6 +233,7 @@ def clip(lo, val, hi):
     if val > hi:
         return hi
     return val
+
 
 # Inspired by https://www.researchgate.net/profile/Philippe_Pasquier/publication/220867545_Towards_a_Generic_Framework_for_Automated_Video_Game_Level_Creation/links/0912f510ac2bed57d1000000.pdf
 
@@ -163,15 +261,17 @@ class Individual_DE(object):
             pathPercentage=0.5,
             emptyPercentage=0.6,
             linearity=-0.5,
-            solvability=2.0
+            solvability=2.0,
         )
         penalties = 0
         # STUDENT For example, too many stairs are unaesthetic.  Let's penalize that
         if len(list(filter(lambda de: de[1] == "6_stairs", self.genome))) > 5:
             penalties -= 2
         # STUDENT If you go for the FI-2POP extra credit, you can put constraint calculation in here too and cache it in a new entry in __slots__.
-        self._fitness = sum(map(lambda m: coefficients[m] * measurements[m],
-                                coefficients)) + penalties
+        self._fitness = (
+            sum(map(lambda m: coefficients[m] * measurements[m], coefficients))
+            + penalties
+        )
         return self
 
     def fitness(self):
@@ -183,8 +283,11 @@ class Individual_DE(object):
         # STUDENT How does this work?  Explain it in your writeup.
         # STUDENT consider putting more constraints on this, to prevent generating weird things
         if random.random() < 0.1 and len(new_genome) > 0:
-            to_change = random.randint(0, len(new_genome) - 1)
-            de = new_genome[to_change]
+            # This code indicates that when the genome is greater than 0, there is a 10% probability of gene mutation.
+            to_change = random.randint(
+                0, len(new_genome) - 1
+            )  # Randomly pick a segment to mutate. (not the last one)
+            de = new_genome[to_change]  # storage the segment
             new_de = de
             x = de[0]
             de_type = de[1]
@@ -261,16 +364,27 @@ class Individual_DE(object):
 
     def generate_children(self, other):
         # STUDENT How does this work?  Explain it in your writeup.
-        pa = random.randint(0, len(self.genome) - 1)
-        pb = random.randint(0, len(other.genome) - 1)
-        a_part = self.genome[:pa] if len(self.genome) > 0 else []
-        b_part = other.genome[pb:] if len(other.genome) > 0 else []
-        ga = a_part + b_part
+        pa = random.randint(
+            0, len(self.genome) - 1
+        )  # Randomly pick a sequence number in the genome (not the last one)
+        pb = random.randint(
+            0, len(other.genome) - 1
+        )  # Randomly pick a sequence number in the genome (not the last one)
+        a_part = (
+            self.genome[:pa] if len(self.genome) > 0 else []
+        )  # first part of the genome from self
+        b_part = (
+            other.genome[pb:] if len(other.genome) > 0 else []
+        )  # second part of the genome from other
+        ga = a_part + b_part  # Generating new genomes
+        # Same idea, but this time with the order of genome assembly reversed.
         b_part = other.genome[:pb] if len(other.genome) > 0 else []
         a_part = self.genome[pa:] if len(self.genome) > 0 else []
         gb = b_part + a_part
         # do mutation
-        return Individual_DE(self.mutate(ga)), Individual_DE(self.mutate(gb))
+        return Individual_DE(self.mutate(ga)), Individual_DE(
+            self.mutate(gb)
+        )  # Returns two subgenomes after gene mutation.
 
     # Apply the DEs to a base level.
     def to_level(self):
@@ -305,13 +419,17 @@ class Individual_DE(object):
                     dx = de[3]  # -1 or 1
                     for x2 in range(1, h + 1):
                         for y in range(x2 if dx == 1 else h - x2):
-                            base[clip(0, height - y - 1, height - 1)][clip(1, x + x2, width - 2)] = "X"
+                            base[clip(0, height - y - 1, height - 1)][
+                                clip(1, x + x2, width - 2)
+                            ] = "X"
                 elif de_type == "1_platform":
                     w = de[2]
                     h = de[3]
                     madeof = de[4]  # from "?", "X", "B"
                     for x2 in range(w):
-                        base[clip(0, height - h - 1, height - 1)][clip(1, x + x2, width - 2)] = madeof
+                        base[clip(0, height - h - 1, height - 1)][
+                            clip(1, x + x2, width - 2)
+                        ] = madeof
                 elif de_type == "2_enemy":
                     base[height - 2][x] = "E"
             self._level = base
@@ -327,16 +445,50 @@ class Individual_DE(object):
     def random_individual(_cls):
         # STUDENT Maybe enhance this
         elt_count = random.randint(8, 128)
-        g = [random.choice([
-            (random.randint(1, width - 2), "0_hole", random.randint(1, 8)),
-            (random.randint(1, width - 2), "1_platform", random.randint(1, 8), random.randint(0, height - 1), random.choice(["?", "X", "B"])),
-            (random.randint(1, width - 2), "2_enemy"),
-            (random.randint(1, width - 2), "3_coin", random.randint(0, height - 1)),
-            (random.randint(1, width - 2), "4_block", random.randint(0, height - 1), random.choice([True, False])),
-            (random.randint(1, width - 2), "5_qblock", random.randint(0, height - 1), random.choice([True, False])),
-            (random.randint(1, width - 2), "6_stairs", random.randint(1, height - 4), random.choice([-1, 1])),
-            (random.randint(1, width - 2), "7_pipe", random.randint(2, height - 4))
-        ]) for i in range(elt_count)]
+        g = [
+            random.choice(
+                [
+                    (random.randint(1, width - 2), "0_hole", random.randint(1, 8)),
+                    (
+                        random.randint(1, width - 2),
+                        "1_platform",
+                        random.randint(1, 8),
+                        random.randint(0, height - 1),
+                        random.choice(["?", "X", "B"]),
+                    ),
+                    (random.randint(1, width - 2), "2_enemy"),
+                    (
+                        random.randint(1, width - 2),
+                        "3_coin",
+                        random.randint(0, height - 1),
+                    ),
+                    (
+                        random.randint(1, width - 2),
+                        "4_block",
+                        random.randint(0, height - 1),
+                        random.choice([True, False]),
+                    ),
+                    (
+                        random.randint(1, width - 2),
+                        "5_qblock",
+                        random.randint(0, height - 1),
+                        random.choice([True, False]),
+                    ),
+                    (
+                        random.randint(1, width - 2),
+                        "6_stairs",
+                        random.randint(1, height - 4),
+                        random.choice([-1, 1]),
+                    ),
+                    (
+                        random.randint(1, width - 2),
+                        "7_pipe",
+                        random.randint(2, height - 4),
+                    ),
+                ]
+            )
+            for i in range(elt_count)
+        ]
         return Individual_DE(g)
 
 
@@ -347,29 +499,45 @@ def generate_successors(population):
     results = []
     # STUDENT Design and implement this
     # Hint: Call generate_children() on some individuals and fill up results.
+
     return results
 
 
 def ga():
     # STUDENT Feel free to play with this parameter
-    pop_limit = 480
+    # pop_limit = 480
+    pop_limit = 1
     # Code to parallelize some computations
     batches = os.cpu_count()
     if pop_limit % batches != 0:
-        print("It's ideal if pop_limit divides evenly into " + str(batches) + " batches.")
+        print(
+            "It's ideal if pop_limit divides evenly into " + str(batches) + " batches."
+        )
     batch_size = int(math.ceil(pop_limit / batches))
     with mpool.Pool(processes=os.cpu_count()) as pool:
         init_time = time.time()
         # STUDENT (Optional) change population initialization
-        population = [Individual.random_individual() if random.random() < 0.9
-                      else Individual.empty_individual()
-                      for _g in range(pop_limit)]
+        population = [
+            Individual.random_individual()
+            if random.random() < 0.9
+            else Individual.empty_individual()
+            for _g in range(pop_limit)
+        ]
+        # print(dir(population[0]))
+        # print(population[0].genome)
+        with open("levels/last.txt", "w") as f:
+            for row in population[0].to_level():
+                f.write("".join(row) + "\n")
+        exit()
+        # os.system("PAUSE")
         # But leave this line alone; we have to reassign to population because we get a new population that has more cached stuff in it.
-        population = pool.map(Individual.calculate_fitness,
-                              population,
-                              batch_size)
+        population = pool.map(Individual.calculate_fitness, population, batch_size)
         init_done = time.time()
-        print("Created and calculated initial population statistics in:", init_done - init_time, "seconds")
+        print(
+            "Created and calculated initial population statistics in:",
+            init_done - init_time,
+            "seconds",
+        )
         generation = 0
         start = time.time()
         now = start
@@ -384,7 +552,7 @@ def ga():
                     print("Max fitness:", str(best.fitness()))
                     print("Average generation time:", (now - start) / generation)
                     print("Net time:", now - start)
-                    with open("levels/last.txt", 'w') as f:
+                    with open("levels/last.txt", "w") as f:
                         for row in best.to_level():
                             f.write("".join(row) + "\n")
                 generation += 1
@@ -398,9 +566,9 @@ def ga():
                 gendone = time.time()
                 print("Generated successors in:", gendone - gentime, "seconds")
                 # Calculate fitness in batches in parallel
-                next_population = pool.map(Individual.calculate_fitness,
-                                           next_population,
-                                           batch_size)
+                next_population = pool.map(
+                    Individual.calculate_fitness, next_population, batch_size
+                )
                 popdone = time.time()
                 print("Calculated fitnesses in:", popdone - gendone, "seconds")
                 population = next_population
@@ -416,6 +584,6 @@ if __name__ == "__main__":
     now = time.strftime("%m_%d_%H_%M_%S")
     # STUDENT You can change this if you want to blast out the whole generation, or ten random samples, or...
     for k in range(0, 10):
-        with open("levels/" + now + "_" + str(k) + ".txt", 'w') as f:
+        with open("levels/" + now + "_" + str(k) + ".txt", "w") as f:
             for row in final_gen[k].to_level():
                 f.write("".join(row) + "\n")
