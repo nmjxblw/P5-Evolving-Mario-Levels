@@ -120,73 +120,37 @@ class Individual_Grid(object):
         # STUDENT also consider weighting the different tile types so it's not uniformly random
         g = [["" for col in range(width)] for row in range(height)]
         g[0][:] = ["-"] * width
-        for x in range(1, width - 1):
+        for x in range(width - 1):
             for y in range(1, height - 1):
-                # we do the random
-                # also set the weights to make the game much easier
-                if g[y][x] == "":
-                    g[y][x] = random.choices(
-                        options, weights=[5, 1, 2, 2, 1, 3, 1, 1, 1], k=1
-                    )[0]
-                if x <= 1 and y >= 12:
-                    # clean zone
+                # we only modifiy the blocks from height: 1 to 15
+                # get preivous blck information
+                if x <= 7 and y >= 12:
                     g[y][x] = "-"
                     continue
-                try:
-                    # then we need to check if the block is legal or not
-                    if g[y][x] == "|" and (g[y + 1][x] not in ["|", "X"]):
-                        # this means pipe in the air,
-                        # add a pipe or a solid wall at the bottom.
-                        g[y + 1][x] = random.choices(["|", "X"], weights=[2, 8], k=1)[0]
-                        if y != 0:
-                            if g[y - 1][x] not in ["T", "|"]:
-                                g[y][x] = "T"
-                                print(f"g[{y - 1}][{x}] is {g[y - 1][x]}")
-                                print(f"so,place g[{y}][{x}] to T")
-                    if g[y][x] in ["T", "M", "?"]:
-                        # if this block is a top of pipe or mushroom block,
-                        print(f"find a {g[y][x]} at g[{y}][{x}]")
-                        if g[y][x] == "T":
-                            # for pipe top block
-                            # we need to add a pipe or a solid wall at the bottom.
-                            g[y + 1][x] = random.choices(
-                                ["|", "X"], weights=[3, 7], k=1
-                            )[0]
-                            print(f"so,place g[{y+1}][{x}] to {g[y + 1][x]}")
-                        if y != 0:
-                            # also, we don't want any block on the top of the pipe top or mushroom block
-                            # we need to check if it's legal to delete the block
-                            ban_list = ["|", "T", "E"]
-                            if y >= 2:
-                                if g[y - 2][x] in ban_list:
-                                    # bad block, repick it
-                                    g[y][x] = random.choices(
-                                        ["X", "B", "?"], weights=[1, 8, 1], k=1
-                                    )[0]
-                                    print(
-                                        f"g[{y - 2}][{x}] is {g[y - 2][x]}, it's in ban_list"
-                                    )
-                                    print(f"so repalce g[{y}][{x}] ot {g[y][x]}")
-                                    continue
-                        # this means we can delete the block
-                        g[y - 1][x] = "-"
-                        print(f"and repalce g[{y-1}][{x}] ot {g[y-1][x]}")
-                        continue
-                    if g[y][x] == "E":
-                        # When generating enemies, we don't want them to be too close to the starting position.
-                        if x <= 7 or g[y - 1][x] in ["T", "E", "|"]:
-                            # print(f"find enemy at[{x},{y}]")
-                            # delete it
-                            g[y][x] == "-"
-                            continue
-                        # make sure the enemy is standing on the block
-                        g[y + 1][x] == random.choice(["X", "B", "?", "M", "T"])
-                        continue
-                except IndexError:
-                    # out of index error,
-                    # fix it as a solid wall block
-                    # print("Index error")
-                    g[y][x] = "X"
+                if g[y - 1][x] in ["-", "o", "X", "B"]:
+                    # we can pick anything we want
+                    g[y][x] = random.choices(
+                        [
+                            "-",
+                            "X",
+                            "B",
+                            "M",
+                            "?",
+                            "o",
+                            "T",
+                            "E",
+                        ],
+                        weights=[5, 4, 3, 2, 1, 1, 1 if g[y - 1][x] == "-" else 0, 1],
+                        k=1,
+                    )[0]
+                elif g[y - 1][x] in ["T", "|"]:
+                    g[y][x] = random.choices(["X", "B", "|"], weights=[8, 1, 1], k=1)[0]
+                elif g[y - 1][x] == "E":
+                    g[y][x] = random.choices(
+                        ["X", "B", "T", "M", "?"], weights=[6, 1, 1, 1, 1], k=1
+                    )[0]
+                else:
+                    g[y][x] = "-"
 
         # Brute force fix
         for x in range(width):
