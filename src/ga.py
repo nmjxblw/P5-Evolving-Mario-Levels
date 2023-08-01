@@ -94,8 +94,6 @@ class Individual_Grid(object):
         # STUDENT implement a mutation operator, also consider not mutating this individual
         # STUDENT also consider weighting the different tile types so it's not uniformly random
         # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
-        # print(genome)
-        # os.system("pause")
         left = 1
         right = width - 1
         coin_count = 0
@@ -383,7 +381,7 @@ class Individual_DE(object):
             pathPercentage=0.5,
             emptyPercentage=0.6,
             linearity=-0.5,
-            solvability=2.0,
+            solvability=5.0,
         )
         penalties = 0
         # STUDENT For example, too many stairs are unaesthetic.  Let's penalize that
@@ -484,7 +482,7 @@ class Individual_DE(object):
                 elif choice < 0.75:
                     y = offset_by_upto(y, height, min=0, max=height - 1)
                 else:
-                    madeof = random.choice(["?", "X", "B"])
+                    madeof = random.choice(["?", "X", "B", "random"])
                 new_de = (x, de_type, w, y, madeof)
             elif de_type == "2_enemy":
                 pass
@@ -494,12 +492,20 @@ class Individual_DE(object):
 
     def generate_children(self, other):
         # STUDENT How does this work?  Explain it in your writeup.
+        # The function attempts fragment combination. The steps are as follows:
+        # 1.Select a cutting point.
+
+        other_len = len(other.genome) - 1
+
         pa = random.randint(
             0, len(self.genome) - 1
         )  # Randomly pick a sequence number in the genome (not the last one)
         pb = random.randint(
-            0, len(other.genome) - 1
+            0,
+            other_len,  # for some reasons, it may casue an error when I call len(other.genome) - 1 in the random
         )  # Randomly pick a sequence number in the genome (not the last one)
+        # 2.Cut the two parent genomes at the selected cutting point.
+        # 3.Concatenate the genomes to generate offspring genes with shapes inherited from the parent segments.
         a_part = (
             self.genome[:pa] if len(self.genome) > 0 else []
         )  # first part of the genome from self
@@ -511,6 +517,7 @@ class Individual_DE(object):
         b_part = other.genome[:pb] if len(other.genome) > 0 else []
         a_part = self.genome[pa:] if len(self.genome) > 0 else []
         gb = b_part + a_part
+
         # do mutation
         return Individual_DE(self.mutate(ga)), Individual_DE(
             self.mutate(gb)
@@ -565,9 +572,17 @@ class Individual_DE(object):
                     for x2 in range(w):
                         base[clip(0, height - h - 1, height - 1)][
                             clip(1, x + x2, width - 2)
-                        ] = madeof
+                        ] = (
+                            madeof
+                            if madeof != "random"
+                            else random.choice(["?", "X", "B"])
+                        )
                 elif de_type == "2_enemy":
                     base[height - 2][x] = "E"
+                    try:
+                        base[height - 1][x] = random.choice(["X", "B", "?", "M"])
+                    except IndexError:
+                        pass
             self._level = base
         return self._level
 
@@ -590,7 +605,7 @@ class Individual_DE(object):
                         "1_platform",
                         random.randint(1, 8),
                         random.randint(0, height - 1),
-                        random.choice(["?", "X", "B"]),
+                        random.choice(["?", "X", "B", "random"]),
                     ),
                     (random.randint(1, width - 2), "2_enemy"),
                     (
@@ -628,8 +643,8 @@ class Individual_DE(object):
         return Individual_DE(g)
 
 
-Individual = Individual_Grid
-# Individual = Individual_DE
+# Individual = Individual_Grid
+Individual = Individual_DE
 
 
 def generate_successors(population):
@@ -637,14 +652,28 @@ def generate_successors(population):
     # STUDENT Design and implement this
     # Hint: Call generate_children() on some individuals and fill up results.
 
-    for _ in range(len(population)):
-        # Elite Preservation Strategy
-        # only pick first half population to generate children
-        # since the fitness has been sorted, the first half population are elites
-        i = random.randint(0, len(population) / 4)
-        results.append(
-            population[0].generate_children(population[i])[0]  # population[i] is an obj
-        )
+    if str(Individual) == str(Individual_Grid):
+        for _ in range(len(population)):
+            # Elite Preservation Strategy
+            # only pick first half population to generate children
+            # since the fitness has been sorted, the first half population are elites
+            i = random.randint(0, len(population) / 4)
+            results.append(
+                population[0].generate_children(population[i])[
+                    0
+                ]  # population[i] is an obj
+            )
+    elif str(Individual) == str(Individual_DE):
+        while len(results) < len(population):
+            # Elite Preservation Strategy
+            # only pick first half population to generate children
+            # since the fitness has been sorted, the first half population are elites
+            i = random.randint(0, len(population) / 4)
+            child1, child2 = population[0].generate_children(population[i])
+            results.append(child1)
+            results.append(child2)
+    else:
+        raise TypeError("UnknownType")
     return results
 
 
