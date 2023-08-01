@@ -25,7 +25,7 @@
     - It’s OK if it’s different from the Grid version; you may want to make assumptions about how many of the different design elements you want and use that to feed into your fitness function.
   - [ ] (Optional, for extra credit and better results) Implement FI-2POP from the [Sorenson & Pasquier](https://www.researchgate.net/profile/Philippe-Pasquier-2/publication/220867545_Towards_a_Generic_Framework_for_Automated_Video_Game_Level_Creation/links/0912f510ac2bed57d1000000/Towards-a-Generic-Framework-for-Automated-Video-Game-Level-Creation.pdf) paper.
     - Extra credit. Will require some changes to *ga()*.
-  - [ ] Pick 1 favorite level from either encoding.
+  - [x] Pick 1 favorite level from either encoding.
     - Copy out a *.txt* file from levels/ with a shape you like. You can also change the code in *ga.py* to output more/different levels from your population.
   - [ ] Play that level in the Unity player and make sure you can beat it.
     - Use *python3* *copy-level.py* *lev.txt* to copy your level to the right place.
