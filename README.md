@@ -30,6 +30,21 @@
   - [ ] Play that level in the Unity player and make sure you can beat it.
     - Use *python3* *copy-level.py* *lev.txt* to copy your level to the right place.
 - **Modifications to the code**  
-  
-
+   - **For `random_individual`**  
+      - **For Individual_Grid**  
+          - We have added a random algorithm, and now the random_individual function can create a map filled with random elements. In the random_individual function, we have also added brute-force correction code to ensure that pipes are not generated above air blocks during the generation process. Additionally, the brute-force algorithm corrects the position where enemies are generated, ensuring that they always spawn on a solid block.  
+   - **For `generate_successors`**  
+      - When calling the function `generate_successors`, we implemented the elite preservation strategy, where the population is sorted based on their fitness, and only the top half of the population with the highest fitness is selected as parents to produce offspring.  
+   - **For `generate_children`**  
+      - **For Individual_Grid**  
+        - Three strategies were used to implement the parental crossover combination:  
+          - 1.Sequential Block Replacement  
+          - 2.Genome Fragment Crossover  
+          - 3.Random Uniform Replacement  
+   - **For `mutate`**  
+      - **For Individual_Grid**   
+        - Added random block strategy and brute-force correction, ensuring both the randomness of the blocks and preventing mutated individuals from producing maps with bugs.  
+   - **For `calculate_fitness`**  
+      - **For Individual_Grid**   
+        - We added a penalty mechanism that deducts points when impassable "passages" appear. At the same time, we increased the weight of solvability, giving higher fitness to levels that can be solved.  
 

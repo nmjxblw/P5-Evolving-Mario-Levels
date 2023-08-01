@@ -39,6 +39,7 @@ class Individual_Grid(object):
     # Update this individual's estimate of its fitness.
     # This can be expensive so we do it once and then cache the result.
     def calculate_fitness(self):
+        genome = self.to_level()
         measurements = metrics.metrics(self.to_level())
         # Print out the possible measurements or look at the implementation of metrics.py for other keys:
         # print(measurements.keys())
@@ -46,18 +47,39 @@ class Individual_Grid(object):
         # for key in measurements.keys():
         #     print(f"measurements[{key}]:{measurements[key]}")
         # os.system("pause")
+        # print(self.to_level())
         # Default fitness function: Just some arbitrary combination of a few criteria.  Is it good?  Who knows?
         # STUDENT Modify this, and possibly add more metrics.  You can replace this with whatever code you like.
         coefficients = dict(
-            meaningfulJumpVariance=0.5,
+            meaningfulJumpVariance=1.0,
             negativeSpace=0.6,
             pathPercentage=0.5,
             emptyPercentage=0.6,
             linearity=-0.5,
-            solvability=2.0,
+            solvability=5.0,
         )
-        self._fitness = sum(
-            map(lambda m: coefficients[m] * measurements[m], coefficients)
+        # e_count = 0
+        # coin_count = 0
+        p = 0
+        for x in range(width - 1):
+            for y in range(height - 2):
+                if genome[y][x] not in ["-", "o"] and genome[y + 2][x] not in [
+                    "-",
+                    "o",
+                ]:
+                    p -= 0.1
+                if genome[y][x] in ["-", "o"] and genome[y + 1][x] in ["-", "o"]:
+                    try:
+                        if genome[y][x - 1] in ["-", "o"] and genome[y + 1][x - 1] in [
+                            "-",
+                            "o",
+                        ]:
+                            break
+                    except IndexError:
+                        pass
+                    p -= 0.01
+        self._fitness = (
+            sum(map(lambda m: coefficients[m] * measurements[m], coefficients)) + p
         )
         return self
 
@@ -76,25 +98,130 @@ class Individual_Grid(object):
         # os.system("pause")
         left = 1
         right = width - 1
+        coin_count = 0
         for y in range(height):
             for x in range(left, right):
-                pass
+                # random mutate
+                # pick up a block randomly
+                if random.random() < 0.33:
+                    random_factor = random.random()
+                    if random_factor < 0.33:
+                        # swap blocks
+                        t_x = offset_by_upto(x, width / 8, min=1, max=width - 2)
+                        t_y = offset_by_upto(y, height / 2, min=1, max=14)
+                        genome[y][x], genome[t_y][t_x] = genome[t_y][t_x], genome[y][x]
+                    elif random_factor < 0.66:
+                        # copy blocks
+                        t_x = offset_by_upto(x, width / 8, min=1, max=width - 2)
+                        t_y = offset_by_upto(y, height / 2, min=1, max=14)
+                        genome[y][x] = genome[t_y][t_x]
+
+                    else:
+                        # random pick
+                        genome[y][x] = random.choices(
+                            ["o", "B", "-", "?", "M", "X"],
+                            weights=[1 if coin_count < 12 else 0, 1, 80, 1, 1, 1],
+                            k=1,
+                        )[
+                            0
+                        ]  # these are safe blocks, won't cause error.
+                else:
+                    pass
+                if genome[y][x] == "o":
+                    coin_count += 1
+        # Brute force fix
+        for x in range(width):
+            for y in range(height - 1):
+                if x <= 7 and y >= 12:
+                    # a clean zone
+                    genome[y][x] = "-"
+                    continue
+                if genome[y][x] in ["T", "|"]:
+                    if genome[y + 1][x] not in ["X", "B", "?", "M", "|"]:
+                        genome[y + 1][x] = "X"
+                        try:
+                            if genome[y + 1][x + 1] not in ["X", "B", "?", "M"]:
+                                genome[y + 1][x + 1] = "X"
+                        except IndexError:
+                            pass
+                    if genome[y][x] == "|":
+                        try:
+                            if genome[y - 1][x] in ["-", "o", "E"]:
+                                genome[y][x] = "T"
+                        except IndexError:
+                            pass
+                elif genome[y][x] == "E":
+                    if genome[y + 1][x] not in ["X", "B", "?", "M", "T"]:
+                        genome[y][x] = "-"
+                elif genome[y][x] in ["?", "M"]:
+                    if genome[y + 1][x] in ["X", "B", "?", "M", "|", "T"]:
+                        genome[y + 1][x] = "-"
+                elif genome[y][x] in "o":
+                    if genome[y - 1][x] in ["T", "|", "E"]:
+                        genome[y - 1][x] = "X"
+
+        genome[15][:] = ["X"] * width
+        genome[14][0] = "m"
+        genome[7][-1] = "v"
+        for col in range(8, 14):
+            genome[col][-1] = "f"
+        for col in range(14, 16):
+            genome[col][-1] = "X"
         return genome
 
     # Create zero or more children from self and other
     def generate_children(self, other):
         new_genome = copy.deepcopy(self.genome)
+        if other:
+            other_genome = copy.deepcopy(other.genome)
+        else:
+            other_genome = copy.deepcopy(self.empty_individual())
+            # print(other_genome)
+        # print(new_genome)
+        # exit()
         # Leaving first and last columns alone...
         # do crossover with other
         left = 1
         right = width - 1
-        for y in range(height):
-            for x in range(left, right):
-                # STUDENT Which one should you take?  Self, or other?  Why?
-                # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
-                pass
+        choice = random.random()
+        if choice < 0.33:
+            # Strategy 1: Sequential Block Replacement
+            for y in range(1, height - 1):
+                for x in range(left, right):
+                    # STUDENT Which one should you take?  Self, or other?  Why?
+                    # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
+                    if new_genome[y][x] != other_genome[y][x]:
+                        # if and only if the blocks are different, then we do the
+                        new_genome[y][x] = random.choices(
+                            [new_genome[y][x], other_genome[y][x]],
+                            weights=[1, 1],
+                            k=1,
+                        )[0]
+        elif choice < 0.66:
+            # Strategy 2: Genome Fragment Crossover
+            # pick the cut point
+            cut_point = random.randint(left, right)
+            if random.random() < 0.5:
+                # left self, right other
+                for y in range(1, height - 1):
+                    for x in range(cut_point, right):
+                        new_genome[y][x] = other_genome[y][x]
+            else:
+                # left other, right self
+                for y in range(1, height - 1):
+                    for x in range(left, cut_point):
+                        new_genome[y][x] = other_genome[y][x]
+        else:
+            # Strategy 3: Random Uniform Replacement
+            min_h = random.randint(1, height - 1)
+            max_h = random.randint(min_h, height - 1)
+            min_w = random.randint(left, right)
+            max_w = random.randint(min_w, right)
+            for y in range(min_h, max_h + 1):
+                for x in range(min_w, max_w + 1):
+                    new_genome[y][x] = other_genome[y][x]
         # do mutation; note we're returning a one-element tuple here
-        return (Individual_Grid(new_genome), Individual_Grid(new_genome))
+        return (Individual_Grid(self.mutate(new_genome)),)
 
     # Turn the genome into a level string (easy for this genome)
     def to_level(self):
@@ -118,46 +245,77 @@ class Individual_Grid(object):
     def random_individual(cls):
         # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
         # STUDENT also consider weighting the different tile types so it's not uniformly random
-        g = [["" for col in range(width)] for row in range(height)]
-        g[0][:] = ["-"] * width
-        for x in range(width - 1):
+        g = [["-" for col in range(width)] for row in range(height)]
+        coin_count = 0
+        e_count = 0
+        for x in range(1, width - 1):
             for y in range(1, height - 1):
                 # we only modifiy the blocks from height: 1 to 15
                 # get preivous blck information
                 if x <= 7 and y >= 12:
+                    # a clean zone
                     g[y][x] = "-"
+                    continue
+                if g[y][x] != "-":
+                    # this block has been modified, skip to next
                     continue
                 if g[y - 1][x] in ["-", "o", "X", "B"]:
                     # we can pick anything we want
-                    g[y][x] = random.choices(
-                        [
-                            "-",
-                            "X",
-                            "B",
-                            "M",
-                            "?",
-                            "o",
-                            "T",
-                            "E",
-                        ],
-                        weights=[5, 4, 3, 2, 1, 1, 1 if g[y - 1][x] == "-" else 0, 1],
-                        k=1,
-                    )[0]
+                    try:
+                        if g[y - 2][x] in ["-", "o"]:
+                            g[y][x] = random.choices(
+                                ["-", "X", "B", "M", "?", "o", "T", "E"],
+                                weights=[
+                                    80
+                                    if g[y - 1][x] == "-"
+                                    else 50,  # leave some space to pass
+                                    1,
+                                    10,
+                                    1,
+                                    1,
+                                    1 if coin_count < 12 else 0.5,
+                                    1
+                                    if g[y - 1][x] == "-"
+                                    else 0,  # we dont want to see pipe top
+                                    2 if e_count < 6 else 1,
+                                ],
+                                k=1,
+                            )[0]
+                            continue
+                    except IndexError:
+                        pass
+                    g[y][x] = random.choices(["-", "o"], weights=[99, 1], k=1)[0]
                 elif g[y - 1][x] in ["T", "|"]:
-                    g[y][x] = random.choices(["X", "B", "|"], weights=[8, 1, 1], k=1)[0]
+                    g[y][x] = random.choices(["X", "B", "|"], weights=[1, 8, 1], k=1)[0]
+                    if g[y][x] in ["X", "B"]:
+                        g[y][x + 1] = random.choice(["X", "B"])
                 elif g[y - 1][x] == "E":
                     g[y][x] = random.choices(
-                        ["X", "B", "T", "M", "?"], weights=[6, 1, 1, 1, 1], k=1
+                        ["X", "B", "T", "M", "?"], weights=[1, 6, 1, 1, 1], k=1
                     )[0]
                 else:
                     g[y][x] = "-"
 
+                if g[y][x] == "E":
+                    e_count += 1
+                if g[y][x] == "o":
+                    coin_count += 1
+
         # Brute force fix
         for x in range(width):
             for y in range(height - 1):
+                if x <= 7 and y >= 12:
+                    # a clean zone
+                    g[y][x] = "-"
+                    continue
                 if g[y][x] in ["T", "|"]:
                     if g[y + 1][x] not in ["X", "B", "?", "M", "|"]:
                         g[y + 1][x] = "X"
+                        try:
+                            if g[y + 1][x + 1] not in ["X", "B", "?", "M"]:
+                                g[y + 1][x + 1] = "X"
+                        except IndexError:
+                            pass
                 elif g[y][x] == "E":
                     if g[y + 1][x] not in ["X", "B", "?", "M", "T"]:
                         g[y][x] = "-"
@@ -230,6 +388,14 @@ class Individual_DE(object):
         penalties = 0
         # STUDENT For example, too many stairs are unaesthetic.  Let's penalize that
         if len(list(filter(lambda de: de[1] == "6_stairs", self.genome))) > 5:
+            penalties -= 2
+        if len(list(filter(lambda de: de[1] == "2_enemy", self.genome))) < 5:
+            penalties -= 2
+        elif len(list(filter(lambda de: de[1] == "2_enemy", self.genome))) > 10:
+            penalties -= 1
+        elif len(list(filter(lambda de: de[1] == "2_enemy", self.genome))) == 7:
+            penalties += 1
+        if len(list(filter(lambda de: de[1] == "5_qblock", self.genome))) < 5:
             penalties -= 2
         # STUDENT If you go for the FI-2POP extra credit, you can put constraint calculation in here too and cache it in a new entry in __slots__.
         self._fitness = (
@@ -374,6 +540,12 @@ class Individual_DE(object):
                     base[height - h - 1][x] = "T"
                     for y in range(height - h, height):
                         base[y][x] = "|"
+                    try:
+                        # just to avoid the pipe in the air
+                        base[height][x] = "X"
+                        base[height][x + 1] = "X"
+                    except IndexError:
+                        pass
                 elif de_type == "0_hole":
                     w = de[2]
                     for x2 in range(w):
@@ -457,6 +629,7 @@ class Individual_DE(object):
 
 
 Individual = Individual_Grid
+# Individual = Individual_DE
 
 
 def generate_successors(population):
@@ -464,13 +637,21 @@ def generate_successors(population):
     # STUDENT Design and implement this
     # Hint: Call generate_children() on some individuals and fill up results.
 
+    for _ in range(len(population)):
+        # Elite Preservation Strategy
+        # only pick first half population to generate children
+        # since the fitness has been sorted, the first half population are elites
+        i = random.randint(0, len(population) / 4)
+        results.append(
+            population[0].generate_children(population[i])[0]  # population[i] is an obj
+        )
     return results
 
 
 def ga():
     # STUDENT Feel free to play with this parameter
-    # pop_limit = 480
-    pop_limit = 1
+    pop_limit = 480
+    # pop_limit = 1
     # Code to parallelize some computations
     batches = os.cpu_count()
     if pop_limit % batches != 0:
@@ -483,16 +664,17 @@ def ga():
         # STUDENT (Optional) change population initialization
         population = [
             Individual.random_individual()
-            if random.random() < 0.9
+            if random.random() < 0.99
             else Individual.empty_individual()
             for _g in range(pop_limit)
         ]
+        # print(f"{type(population).__name__}")
         # print(dir(population[0]))
         # print(population[0].genome)
-        with open("levels/last.txt", "w") as f:
-            for row in population[0].to_level():
-                f.write("".join(row) + "\n")
-        exit()
+        # with open("levels/last.txt", "w") as f:
+        #     for row in population[0].to_level():
+        #         f.write("".join(row) + "\n")
+        # exit()
         # os.system("PAUSE")
         # But leave this line alone; we have to reassign to population because we get a new population that has more cached stuff in it.
         population = pool.map(Individual.calculate_fitness, population, batch_size)
@@ -507,10 +689,13 @@ def ga():
         now = start
         print("Use ctrl-c to terminate this loop manually.")
         try:
+            stop_condition = False
             while True:
                 now = time.time()
                 # Print out statistics
                 if generation > 0:
+                    # print(population[0].to_level())
+                    # exit()
                     best = max(population, key=Individual.fitness)
                     print("Generation:", str(generation))
                     print("Max fitness:", str(best.fitness()))
@@ -521,9 +706,10 @@ def ga():
                             f.write("".join(row) + "\n")
                 generation += 1
                 # STUDENT Determine stopping condition
-                stop_condition = False
                 if stop_condition:
                     break
+                elif generation >= 10:
+                    stop_condition = True
                 # STUDENT Also consider using FI-2POP as in the Sorenson & Pasquier paper
                 gentime = time.time()
                 next_population = generate_successors(population)
@@ -533,6 +719,7 @@ def ga():
                 next_population = pool.map(
                     Individual.calculate_fitness, next_population, batch_size
                 )
+                next_population.sort(key=Individual.fitness, reverse=True)
                 popdone = time.time()
                 print("Calculated fitnesses in:", popdone - gendone, "seconds")
                 population = next_population
