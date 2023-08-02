@@ -2,6 +2,7 @@
 **P5: Evolving Mario Levels**  
 - **Team Members**  
   - Zhuo Chen  
+  - Octavio Villalobos
 
 - **Requirements**
   - [X] Implement `generate_successors` using at least two selection strategies to build up the next population.  
@@ -35,6 +36,7 @@
           - We have added a random algorithm, and now the random_individual function can create a map filled with random elements. In the random_individual function, we have also added brute-force correction code to ensure that pipes are not generated above air blocks during the generation process. Additionally, the brute-force algorithm corrects the position where enemies are generated, ensuring that they always spawn on a solid block.  
    - **For `generate_successors`**  
       - When calling the function `generate_successors`, we implemented the elite preservation strategy, where the population is sorted based on their fitness, and only the top half of the population with the highest fitness is selected as parents to produce offspring.  
+      - A new selection strategy called "tourney_select" has been introduced, which eliminates some of the lower-fitness populations and uses the remaining populations as parents to generate offspring.  
    - **For `generate_children`**  
       - **For `Individual_Grid`**  
         - Three strategies were used to implement the parental crossover combination:  

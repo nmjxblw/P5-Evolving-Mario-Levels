@@ -467,7 +467,7 @@ class Individual_DE(object):
                 if choice < 0.33:
                     x = offset_by_upto(x, width / 8, min=1, max=width - 2)
                 elif choice < 0.66:
-                    h = offset_by_upto(h, 8, min=1, max=height - 4)
+                    h = offset_by_upto(h, 8, min=1, max=height - 6)
                 else:
                     dx = -dx
                 new_de = (x, de_type, h, dx)
@@ -497,13 +497,19 @@ class Individual_DE(object):
 
         other_len = len(other.genome) - 1
 
-        pa = random.randint(
-            0, len(self.genome) - 1
-        )  # Randomly pick a sequence number in the genome (not the last one)
-        pb = random.randint(
-            0,
-            other_len,  # for some reasons, it may casue an error when I call len(other.genome) - 1 in the random
-        )  # Randomly pick a sequence number in the genome (not the last one)
+        try:
+            pa = random.randint(
+                0, len(self.genome) - 1
+            )  # Randomly pick a sequence number in the genome (not the last one)
+        # for some reasons, it may casue an error when I call len(other.genome) - 1 in the random
+        except ValueError:
+            pa = 0
+        try:
+            pb = random.randint(
+                0, other_len
+            )  # Randomly pick a sequence number in the genome (not the last one)
+        except ValueError:
+            pb = 0
         # 2.Cut the two parent genomes at the selected cutting point.
         # 3.Concatenate the genomes to generate offspring genes with shapes inherited from the parent segments.
         a_part = (
@@ -652,14 +658,18 @@ def generate_successors(population):
     # STUDENT Design and implement this
     # Hint: Call generate_children() on some individuals and fill up results.
 
+    if random.random() < 0.5:
+        other_population = tourney_select(population)
+    else:
+        other_population = population
     if str(Individual) == str(Individual_Grid):
         for _ in range(len(population)):
             # Elite Preservation Strategy
             # only pick first half population to generate children
             # since the fitness has been sorted, the first half population are elites
-            i = random.randint(0, len(population) / 4)
+            i = random.randint(0, len(other_population) / 2)
             results.append(
-                population[0].generate_children(population[i])[
+                population[0].generate_children(other_population[i])[
                     0
                 ]  # population[i] is an obj
             )
@@ -668,13 +678,63 @@ def generate_successors(population):
             # Elite Preservation Strategy
             # only pick first half population to generate children
             # since the fitness has been sorted, the first half population are elites
-            i = random.randint(0, len(population) / 4)
-            child1, child2 = population[0].generate_children(population[i])
+            i = random.randint(0, len(other_population) / 2)
+            if len(population) == 0:
+                raise ValueError("0 population")
+            child1, child2 = population[0].generate_children(other_population[i])
             results.append(child1)
             results.append(child2)
     else:
         raise TypeError("UnknownType")
     return results
+
+
+# def elitest_select(population):
+#     results = []
+#     #Commence Elitest Selection
+#     print("Elitest Selection")
+#     #sort based on fitness
+#     elite_pop = sorted(population, key=lambda level: level.fitness,reverse=True)
+#     #Get the top 25 percent of population
+#     elite_count = int(len(population) * 0.5)
+#     #append the top ten percent of the population
+#     for i in range(elite_count):
+#         results.append(elite_pop[i])
+#     return results
+
+
+def tourney_select(population):
+    # Commence Tournament Selection
+    results = []
+
+    print("Torunament  Selection")
+    # shuffle opponets at random
+    random.shuffle(population)
+    # Do it for a quart of the people
+    while len(results) < len(population) * 0.5:
+        pop_a = population[random.randint(0, len(population) - 1)]
+        pop_b = population[random.randint(0, len(population) - 1)]
+        if pop_a.fitness() < pop_b.fitness():
+            results.append(pop_b)
+        else:
+            results.append(pop_a)
+    results.sort(key=Individual.fitness, reverse=True)
+    return results
+
+
+# def generate_successors(population):
+#     results = []
+#     # STUDENT Design and implement this
+#     # Hint: Call generate_children() on some individuals and fill up results.
+#     elite = elitest_select(population)
+#     tourney = tourney_select(population)
+#     select = elite + tourney
+#     for i in range(len(select)-1):
+#         if select[i+1] is None:
+#             break
+#         results.append(select[i].generate_children(select[-(i+1)])[0])
+
+#     return results
 
 
 def ga():
