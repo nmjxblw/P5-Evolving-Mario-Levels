@@ -59,3 +59,5 @@
         - We added a penalty mechanism that deducts points when impassable "passages" appear. At the same time, we increased the weight of solvability, giving higher fitness to levels that can be solved.  
       - **For `Individual_DE`**
         - We adjusted the penalty mechanism so that both generating too many or too few enemies will be penalized. Additionally, we added a mechanism to penalize the generation of too few question blocks. This adds more fun to the game and reduces the level's difficulty.  
+- **About Favorite Levels**  
+  - The average generation time for my two favorite levels is 85 seconds (across a total of 10 generations). I prefer levels generated modularly as they appear more visually appealing compared to grid-generated levels. Additionally, both of these levels are quite challenging; even after successfully completing them, attempting them again results in failure for me.  
